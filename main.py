@@ -78,3 +78,52 @@ if __name__ == '__main__':
     for page in pageUrls:
         downloadPictureFromPage(page, gallaryTitle)
         time.sleep(1)
+
+def denoising_tuning(data, 
+                     wavelets = [i for i in pywt.wavelist() if i not in ['shan','morl','mexh','fbsp','cmor','cgau1',
+                                                                         'cgau2','cgau3','cgau4','cgau5','cgau6','cgau7',
+                                                                         'cgau8','gaus1','gaus2','gaus3','gaus4','gaus5',
+                                                                         'gaus6','gaus7','gaus8']],
+                     mode_thresh = ['hard', 'less'],
+                     mode_dec_reb_wave = ['symmetric', 'periodic', 
+                                          'smooth', 'periodization', 'reflect', 
+                                          'antisymmetric', 'antireflect']):
+    '''
+    denoises data according to different combinations of wavelets, 
+    thresholding techniques and wave rebuilding techniques
+    returns signals-params ordered by NRMSE
+    '''
+    if len(np.unique(data)) <= 5:
+        return data
+
+    denoised = []
+    #for wd, i in zip(wavelets_dec, tqdm(range(len(wavelets_dec)))):
+    error = np.inf
+    temp_params = {}
+    for wavelet in wavelets:
+    #for wavelet, jjj in zip(wavelets, range(1, len(wavelets) + 1)):
+        #print('Testing wavelet {} of {}'.format(jjj, len(wavelets)))
+        for mt in mode_thresh:
+            for mdrw in mode_dec_reb_wave:
+                temp = denoise_signal(data, level = 1, 
+                                      wavelet = wavelet,
+                                      mode_thresh = mt, 
+                                      mode_dec_reb_wave = mdrw)
+                
+                if len(np.unique(temp)) <= 5:
+                    continue
+
+                if len(temp) > len(data):
+                    temp = temp[ : -1]
+
+                temp_err = NRMSE(data, temp)
+                if temp_err < error:
+                    temp_params = {'wavelet': wavelet, 'mode_thresh': mt, 'mode_dec_reb_wave': mdrw}
+                    error = temp_err
+
+    denoised_signal = denoise_signal(data, level = 1, 
+                                     wavelet = temp_params['wavelet'],
+                                     mode_thresh = temp_params['mode_thresh'], 
+                                     mode_dec_reb_wave = temp_params['mode_dec_reb_wave'])
+    #return sorted(denoised, key = itemgetter('NRMSE')) 
+    return denoised_signal
